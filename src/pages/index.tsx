@@ -15,6 +15,8 @@ interface AppConfig {
   pin: string;
   enableReminder: boolean;
   reminderInterval: number;
+  enableKeywords: boolean;
+  enableSummary: boolean;
 }
 
 interface Message {
@@ -61,6 +63,8 @@ const SettingsPage: FC<{ initialConfig: AppConfig; onSave: (config: AppConfig) =
     const [tempPin, setTempPin] = useState(initialConfig.pin);
     const [tempEnableReminder, setTempEnableReminder] = useState(initialConfig.enableReminder);
     const [tempReminderInterval, setTempReminderInterval] = useState(initialConfig.reminderInterval);
+    const [tempEnableKeywords, setTempEnableKeywords] = useState(initialConfig.enableKeywords);
+    const [tempEnableSummary, setTempEnableSummary] = useState(initialConfig.enableSummary);
 
     const handleSave = () => {
         onSave({ 
@@ -69,6 +73,8 @@ const SettingsPage: FC<{ initialConfig: AppConfig; onSave: (config: AppConfig) =
             pin: tempPin,
             enableReminder: tempEnableReminder,
             reminderInterval: tempReminderInterval,
+            enableKeywords: tempEnableKeywords,
+            enableSummary: tempEnableSummary,
         });
     };
 
@@ -94,6 +100,14 @@ const SettingsPage: FC<{ initialConfig: AppConfig; onSave: (config: AppConfig) =
                             <label className="block text-sm font-medium text-gray-400 mb-1">4桁の暗証番号 (任意)</label>
                             <input type="password" value={tempPin} onChange={(e) => setTempPin(e.target.value.replace(/\D/g, ''))} maxLength={4} placeholder="設定しない場合は空" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
                         </div>
+                    </div>
+                </div>
+                <hr className="border-gray-700" />
+                 <div>
+                    <h3 className="text-lg font-semibold text-cyan-400 mb-3">機能設定</h3>
+                    <div className="space-y-4">
+                        <ToggleSwitch label="キーワード抽出を有効にする" enabled={tempEnableKeywords} setEnabled={setTempEnableKeywords} />
+                        <ToggleSwitch label="会話のまとめを有効にする" enabled={tempEnableSummary} setEnabled={setTempEnableSummary} />
                     </div>
                 </div>
                 <hr className="border-gray-700" />
@@ -135,7 +149,7 @@ const ReminderBanner: FC<{ reminder: { theme: string }; onReview: (theme: string
 );
 
 
-const ThemePage: FC<{ onStartChat: (e: FormEvent) => void; theme: string; setTheme: Dispatch<SetStateAction<string>>; enableKeywords: boolean; setEnableKeywords: Dispatch<SetStateAction<boolean>>; enableSummary: boolean; setEnableSummary: Dispatch<SetStateAction<boolean>>; onGoToHistory: () => void; onGoToSettings: () => void; isLoading: boolean; reminder: { theme: string } | null; onReviewReminder: (theme: string) => void; onCloseReminder: () => void; }> = ({ onStartChat, theme, setTheme, enableKeywords, setEnableKeywords, enableSummary, setEnableSummary, onGoToHistory, onGoToSettings, isLoading, reminder, onReviewReminder, onCloseReminder }) => (
+const ThemePage: FC<{ onStartChat: (e: FormEvent) => void; theme: string; setTheme: Dispatch<SetStateAction<string>>; onGoToHistory: () => void; onGoToSettings: () => void; isLoading: boolean; reminder: { theme: string } | null; onReviewReminder: (theme: string) => void; onCloseReminder: () => void; }> = ({ onStartChat, theme, setTheme, onGoToHistory, onGoToSettings, isLoading, reminder, onReviewReminder, onCloseReminder }) => (
     <div className="flex flex-col items-center justify-center h-full p-4 relative">
         {reminder && <div className="absolute top-0 left-0 right-0 z-20"><ReminderBanner reminder={reminder} onReview={onReviewReminder} onClose={onCloseReminder} /></div>}
         <div className="w-full max-w-md text-center">
@@ -147,10 +161,6 @@ const ThemePage: FC<{ onStartChat: (e: FormEvent) => void; theme: string; setThe
             <p className="text-gray-400 mb-8">今日学んだことをAIに説明して、知識を定着させよう！</p>
             <form onSubmit={onStartChat} className="w-full space-y-4">
               <input type="text" value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="今日の学習テーマを入力" className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
-              <div className="space-y-2 text-left">
-                <ToggleSwitch label="キーワード抽出を有効にする" enabled={enableKeywords} setEnabled={setEnableKeywords} />
-                <ToggleSwitch label="会話のまとめを有効にする" enabled={enableSummary} setEnabled={setEnableSummary} />
-              </div>
               <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 disabled:bg-gray-500" disabled={!theme.trim() || isLoading}>説明をはじめる</button>
             </form>
         </div>
@@ -267,11 +277,9 @@ export default function Home() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
-  const [config, setConfig] = useState<AppConfig>({ apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 });
+  const [config, setConfig] = useState<AppConfig>({ apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1, enableKeywords: true, enableSummary: true });
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
-  const [enableKeywords, setEnableKeywords] = useState(true);
-  const [enableSummary, setEnableSummary] = useState(true);
   const [reminder, setReminder] = useState<{ theme: string } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -320,8 +328,6 @@ export default function Home() {
 
   const loadSettingsAndGoToTheme = useCallback((loadedConfig: AppConfig) => {
     setConfig(loadedConfig);
-    setEnableKeywords(loadedConfig.enableKeywords !== false);
-    setEnableSummary(loadedConfig.enableSummary !== false);
     const loadHistory = async () => {
       const items = await getHistoryFromKV();
       setHistoryItems(items);
@@ -334,7 +340,7 @@ export default function Home() {
   useEffect(() => {
     const loadConfig = () => {
       const savedConfigJSON = localStorage.getItem(CONFIG_KEY);
-      const defaultConfig = { apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 };
+      const defaultConfig: AppConfig = { apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1, enableKeywords: true, enableSummary: true };
       if (savedConfigJSON) {
         const loadedConfig = { ...defaultConfig, ...JSON.parse(savedConfigJSON) };
         if (loadedConfig.pin) {
@@ -362,7 +368,7 @@ export default function Home() {
     e.preventDefault();
     const savedConfigJSON = localStorage.getItem(CONFIG_KEY);
     if (!savedConfigJSON) return;
-    const defaultConfig = { apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 };
+    const defaultConfig: AppConfig = { apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1, enableKeywords: true, enableSummary: true };
     const savedConfig = {...defaultConfig, ...JSON.parse(savedConfigJSON)};
     if (enteredPin === savedConfig.pin) {
       setPinError('');
@@ -411,9 +417,9 @@ export default function Home() {
     const userMessage: Message = { role: 'user', content: inputValue };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    if (enableKeywords) { extractKeywords(inputValue); }
+    if (config.enableKeywords) { extractKeywords(inputValue); }
     const userMessageCount = newMessages.filter(m => m.role === 'user').length;
-    if (enableSummary && userMessageCount > 0 && userMessageCount % 3 === 0) { updateSummary(newMessages); }
+    if (config.enableSummary && userMessageCount > 0 && userMessageCount % 3 === 0) { updateSummary(newMessages); }
     setInputValue(''); setIsLoading(true);
     try {
       const aiResponse = await callAI('chat', newMessages);
@@ -501,8 +507,8 @@ export default function Home() {
         case 'settings': return <SettingsPage initialConfig={config} onSave={handleSaveSettings} onBack={() => setCurrentPage('theme')} />;
         case 'history': return <HistoryListPage historyItems={historyItems} onBack={() => setCurrentPage('theme')} onViewDetail={handleViewHistoryDetail} />;
         case 'historyDetail': return <HistoryDetailPage item={selectedHistoryItem} onBack={() => setCurrentPage('history')} />;
-        case 'chat': return <ChatPage theme={theme} messages={messages} isLoading={isLoading} inputValue={inputValue} setInputValue={setInputValue} onSendMessage={handleSendMessage} onReturnToTheme={handleReturnToTheme} onDeleteMessage={handleDeleteMessage} keywords={keywords} summary={summary} isSummarizing={isSummarizing} enableKeywords={enableKeywords} enableSummary={enableSummary} chatEndRef={chatEndRef} />;
-        case 'theme': default: return <ThemePage onStartChat={handleStartChat} theme={theme} setTheme={setTheme} enableKeywords={enableKeywords} setEnableKeywords={setEnableKeywords} enableSummary={enableSummary} setEnableSummary={setEnableSummary} onGoToHistory={() => setCurrentPage('history')} onGoToSettings={() => setCurrentPage('settings')} isLoading={isLoading} reminder={reminder} onReviewReminder={handleReviewReminder} onCloseReminder={handleCloseReminder} />;
+        case 'chat': return <ChatPage theme={theme} messages={messages} isLoading={isLoading} inputValue={inputValue} setInputValue={setInputValue} onSendMessage={handleSendMessage} onReturnToTheme={handleReturnToTheme} onDeleteMessage={handleDeleteMessage} keywords={keywords} summary={summary} isSummarizing={isSummarizing} enableKeywords={config.enableKeywords} enableSummary={config.enableSummary} chatEndRef={chatEndRef} />;
+        case 'theme': default: return <ThemePage onStartChat={handleStartChat} theme={theme} setTheme={setTheme} onGoToHistory={() => setCurrentPage('history')} onGoToSettings={() => setCurrentPage('settings')} isLoading={isLoading} reminder={reminder} onReviewReminder={handleReviewReminder} onCloseReminder={handleCloseReminder} />;
     }
   };
 
