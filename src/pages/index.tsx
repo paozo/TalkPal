@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, FC, FormEvent, Dispatch, SetStateAction, useCallback } from 'react';
+import React, { useState, useRef, useEffect, FC, FormEvent, Dispatch, SetStateAction, useCallback, Ref } from 'react';
 
 // --- 型定義 ---
 interface HistoryItem {
@@ -167,7 +167,7 @@ const ThemePage: FC<{ onStartChat: (e: FormEvent) => void; theme: string; setThe
     </div>
 );
 
-const ChatPage: FC<{ theme: string; messages: Message[]; isLoading: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; onSendMessage: () => void; onReturnToTheme: () => void; onDeleteMessage: (index: number) => void; keywords: string[]; summary: string; isSummarizing: boolean; enableKeywords: boolean; enableSummary: boolean; chatEndRef: React.RefObject<HTMLDivElement>; }> = ({ theme, messages, isLoading, inputValue, setInputValue, onSendMessage, onReturnToTheme, onDeleteMessage, keywords, summary, isSummarizing, enableKeywords, enableSummary, chatEndRef }) => (
+const ChatPage: FC<{ theme: string; messages: Message[]; isLoading: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; onSendMessage: () => void; onReturnToTheme: () => void; onDeleteMessage: (index: number) => void; keywords: string[]; summary: string; isSummarizing: boolean; enableKeywords: boolean; enableSummary: boolean; chatEndRef: Ref<HTMLDivElement>; }> = ({ theme, messages, isLoading, inputValue, setInputValue, onSendMessage, onReturnToTheme, onDeleteMessage, keywords, summary, isSummarizing, enableKeywords, enableSummary, chatEndRef }) => (
     <div className="flex flex-col h-full">
         <header className="bg-gray-800 p-4 flex flex-col shadow-md z-10">
           <div className="flex items-center justify-between w-full">
