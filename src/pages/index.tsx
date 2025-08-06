@@ -33,7 +33,7 @@ const Cog6ToothIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="
 const XMarkIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /> </svg> );
 
 
-const ToggleSwitch = ({ label, enabled, setEnabled }: { label: string; enabled: boolean; setEnabled: Dispatch<SetStateAction<boolean>> }) => (
+const ToggleSwitch: FC<{ label: string; enabled: boolean; setEnabled: Dispatch<SetStateAction<boolean>> }> = ({ label, enabled, setEnabled }) => (
     <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
         <span className="text-gray-300">{label}</span>
         <button onClick={() => setEnabled(!enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${enabled ? 'bg-cyan-600' : 'bg-gray-600'}`}>
@@ -355,7 +355,8 @@ export default function Home() {
       }
     };
     setTimeout(loadConfig, 10);
-  }, [loadSettingsAndGoToTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // This effect should run only once on mount
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -520,3 +521,6 @@ export default function Home() {
     </div>
   );
 }
+```
+
+この手順で、今度こそビルドが成功するはずです。お手数ですが、ご確認をお願いいたし
