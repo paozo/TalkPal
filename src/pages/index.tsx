@@ -1,15 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, FC, FormEvent, Dispatch, SetStateAction } from 'react';
+
+// --- 型定義 ---
+interface HistoryItem {
+  id: string;
+  theme: string;
+  date: string;
+  keywords: string[];
+  summary: string;
+}
+
+interface AppConfig {
+  apiKey: string;
+  localEndpoint: string;
+  pin: string;
+  enableReminder: boolean;
+  reminderInterval: number;
+}
+
+interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 // --- アイコンコンポーネント ---
-const PaperAirplaneIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"> <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /> </svg> );
-const ArrowUturnLeftIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /> </svg> );
-const TrashIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"> <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.58.22-2.365.468a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193v-.443A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" /> </svg> );
-const BookOpenIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /> </svg> );
-const Cog6ToothIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.759 6.759 0 0 1 0 1.905c.008.379.137.752.43.992l1.004.827a1.125 1.125 0 0 1 .26 1.431l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.333.183-.582.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.759 6.759 0 0 1 0-1.905c-.008-.379-.137-.752-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.431l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.217.456c.355.133.75.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.28c.09-.542.56-.94 1.11-.94Z" /> <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /> </svg> );
-const XMarkIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /> </svg> );
+const PaperAirplaneIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"> <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /> </svg> );
+const ArrowUturnLeftIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /> </svg> );
+const TrashIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"> <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.58.22-2.365.468a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193v-.443A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" /> </svg> );
+const BookOpenIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /> </svg> );
+const Cog6ToothIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.759 6.759 0 0 1 0 1.905c.008.379.137.752.43.992l1.004.827a1.125 1.125 0 0 1 .26 1.431l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.333.183-.582.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.759 6.759 0 0 1 0-1.905c-.008-.379-.137-.752-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.431l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.217.456c.355.133.75.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.28c.09-.542.56-.94 1.11-.94Z" /> <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /> </svg> );
+const XMarkIcon: FC = () => ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"> <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /> </svg> );
 
 
-const ToggleSwitch = ({ label, enabled, setEnabled }) => (
+const ToggleSwitch: FC<{ label: string; enabled: boolean; setEnabled: Dispatch<SetStateAction<boolean>> }> = ({ label, enabled, setEnabled }) => (
     <div className="flex items-center justify-between bg-gray-800 p-3 rounded-lg">
         <span className="text-gray-300">{label}</span>
         <button onClick={() => setEnabled(!enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${enabled ? 'bg-cyan-600' : 'bg-gray-600'}`}>
@@ -20,12 +42,12 @@ const ToggleSwitch = ({ label, enabled, setEnabled }) => (
 
 // --- ページコンポーネント ---
 
-const PinEntryPage = ({ onSubmit, enteredPin, setEnteredPin, pinError }) => (
+const PinEntryPage: FC<{ onSubmit: (e: FormEvent) => void; enteredPin: string; setEnteredPin: Dispatch<SetStateAction<string>>; pinError: string }> = ({ onSubmit, enteredPin, setEnteredPin, pinError }) => (
     <div className="flex flex-col items-center justify-center h-full p-4">
       <div className="w-full max-w-xs text-center">
         <h1 className="text-2xl font-bold mb-4 text-cyan-400">暗証番号を入力</h1>
         <form onSubmit={onSubmit}>
-          <input type="password" maxLength="4" value={enteredPin} onChange={(e) => setEnteredPin(e.target.value)} className="w-full px-4 py-3 text-center text-2xl tracking-[1rem] bg-gray-800 border border-gray-700 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500" autoFocus />
+          <input type="password" maxLength={4} value={enteredPin} onChange={(e) => setEnteredPin(e.target.value)} className="w-full px-4 py-3 text-center text-2xl tracking-[1rem] bg-gray-800 border border-gray-700 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500" autoFocus />
           {pinError && <p className="text-red-400 text-sm mb-4">{pinError}</p>}
           <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors" disabled={enteredPin.length !== 4}>ロック解除</button>
         </form>
@@ -33,7 +55,7 @@ const PinEntryPage = ({ onSubmit, enteredPin, setEnteredPin, pinError }) => (
     </div>
 );
 
-const SettingsPage = ({ initialConfig, onSave, onBack }) => {
+const SettingsPage: FC<{ initialConfig: AppConfig; onSave: (config: AppConfig) => void; onBack: () => void }> = ({ initialConfig, onSave, onBack }) => {
     const [tempApiKey, setTempApiKey] = useState(initialConfig.apiKey);
     const [tempEndpoint, setTempEndpoint] = useState(initialConfig.localEndpoint);
     const [tempPin, setTempPin] = useState(initialConfig.pin);
@@ -70,7 +92,7 @@ const SettingsPage = ({ initialConfig, onSave, onBack }) => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">4桁の暗証番号 (任意)</label>
-                            <input type="password" value={tempPin} onChange={(e) => setTempPin(e.target.value.replace(/\D/g, ''))} maxLength="4" placeholder="設定しない場合は空" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                            <input type="password" value={tempPin} onChange={(e) => setTempPin(e.target.value.replace(/\D/g, ''))} maxLength={4} placeholder="設定しない場合は空" className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
                         </div>
                     </div>
                 </div>
@@ -97,7 +119,7 @@ const SettingsPage = ({ initialConfig, onSave, onBack }) => {
     );
 };
 
-const ReminderBanner = ({ reminder, onReview, onClose }) => (
+const ReminderBanner: FC<{ reminder: { theme: string }; onReview: (theme: string) => void; onClose: () => void; }> = ({ reminder, onReview, onClose }) => (
     <div className="bg-cyan-900/50 border border-cyan-700 p-4 rounded-lg m-4 animate-fade-in-down">
         <div className="flex items-center justify-between">
             <div>
@@ -113,7 +135,7 @@ const ReminderBanner = ({ reminder, onReview, onClose }) => (
 );
 
 
-const ThemePage = ({ onStartChat, theme, setTheme, enableKeywords, setEnableKeywords, enableSummary, setEnableSummary, onGoToHistory, onGoToSettings, isLoading, reminder, onReviewReminder, onCloseReminder }) => (
+const ThemePage: FC<{ onStartChat: (e: FormEvent) => void; theme: string; setTheme: Dispatch<SetStateAction<string>>; enableKeywords: boolean; setEnableKeywords: Dispatch<SetStateAction<boolean>>; enableSummary: boolean; setEnableSummary: Dispatch<SetStateAction<boolean>>; onGoToHistory: () => void; onGoToSettings: () => void; isLoading: boolean; reminder: { theme: string } | null; onReviewReminder: (theme: string) => void; onCloseReminder: () => void; }> = ({ onStartChat, theme, setTheme, enableKeywords, setEnableKeywords, enableSummary, setEnableSummary, onGoToHistory, onGoToSettings, isLoading, reminder, onReviewReminder, onCloseReminder }) => (
     <div className="flex flex-col items-center justify-center h-full p-4 relative">
         {reminder && <div className="absolute top-0 left-0 right-0 z-20"><ReminderBanner reminder={reminder} onReview={onReviewReminder} onClose={onCloseReminder} /></div>}
         <div className="w-full max-w-md text-center">
@@ -135,7 +157,7 @@ const ThemePage = ({ onStartChat, theme, setTheme, enableKeywords, setEnableKeyw
     </div>
 );
 
-const ChatPage = ({ theme, messages, isLoading, inputValue, setInputValue, onSendMessage, onReturnToTheme, onDeleteMessage, keywords, summary, isSummarizing, enableKeywords, enableSummary, chatEndRef }) => (
+const ChatPage: FC<{ theme: string; messages: Message[]; isLoading: boolean; inputValue: string; setInputValue: Dispatch<SetStateAction<string>>; onSendMessage: () => void; onReturnToTheme: () => void; onDeleteMessage: (index: number) => void; keywords: string[]; summary: string; isSummarizing: boolean; enableKeywords: boolean; enableSummary: boolean; chatEndRef: React.RefObject<HTMLDivElement>; }> = ({ theme, messages, isLoading, inputValue, setInputValue, onSendMessage, onReturnToTheme, onDeleteMessage, keywords, summary, isSummarizing, enableKeywords, enableSummary, chatEndRef }) => (
     <div className="flex flex-col h-full">
         <header className="bg-gray-800 p-4 flex flex-col shadow-md z-10">
           <div className="flex items-center justify-between w-full">
@@ -172,14 +194,14 @@ const ChatPage = ({ theme, messages, isLoading, inputValue, setInputValue, onSen
         </div>
         <footer className="bg-gray-800 p-4 border-t border-gray-700">
           <div className="flex items-center bg-gray-700 rounded-lg">
-            <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder="説明を入力してください..." rows="1" className="w-full bg-transparent p-3 focus:outline-none resize-none" style={{maxHeight: '100px'}} />
+            <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder="説明を入力してください..." rows={1} className="w-full bg-transparent p-3 focus:outline-none resize-none" style={{maxHeight: '100px'}} />
             <button onClick={onSendMessage} disabled={isLoading || !inputValue.trim()} className="p-3 text-cyan-400 disabled:text-gray-500 hover:text-cyan-300 transition-colors"><PaperAirplaneIcon /></button>
           </div>
         </footer>
     </div>
 );
 
-const HistoryListPage = ({ historyItems, onBack, onViewDetail }) => (
+const HistoryListPage: FC<{ historyItems: HistoryItem[]; onBack: () => void; onViewDetail: (item: HistoryItem) => void; }> = ({ historyItems, onBack, onViewDetail }) => (
     <div className="flex flex-col h-full">
         <header className="bg-gray-800 p-4 flex items-center shadow-md z-10">
             <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><ArrowUturnLeftIcon /></button>
@@ -206,7 +228,7 @@ const HistoryListPage = ({ historyItems, onBack, onViewDetail }) => (
     </div>
 );
 
-const HistoryDetailPage = ({ item, onBack }) => (
+const HistoryDetailPage: FC<{ item: HistoryItem | null; onBack: () => void; }> = ({ item, onBack }) => (
     <div className="flex flex-col h-full">
         <header className="bg-gray-800 p-4 flex items-center shadow-md z-10">
             <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><ArrowUturnLeftIcon /></button>
@@ -215,12 +237,12 @@ const HistoryDetailPage = ({ item, onBack }) => (
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
             <div>
                 <h3 className="text-sm text-gray-400">学習日</h3>
-                <p className="text-lg">{new Date(item?.date).toLocaleString('ja-JP')}</p>
+                <p className="text-lg">{item ? new Date(item.date).toLocaleString('ja-JP') : ''}</p>
             </div>
             <div>
                 <h3 className="text-sm text-gray-400 mb-2">キーワード</h3>
                 <div className="flex flex-wrap gap-2">
-                    {item?.keywords?.length > 0 ? item.keywords.map((kw, i) => ( <span key={i} className="bg-cyan-800 text-cyan-200 text-sm font-medium px-3 py-1 rounded-full">{kw}</span> )) : <p className="text-gray-500">キーワードはありません。</p>}
+                    {item?.keywords?.length ?? 0 > 0 ? item?.keywords.map((kw, i) => ( <span key={i} className="bg-cyan-800 text-cyan-200 text-sm font-medium px-3 py-1 rounded-full">{kw}</span> )) : <p className="text-gray-500">キーワードはありません。</p>}
                 </div>
             </div>
             <div>
@@ -234,42 +256,42 @@ const HistoryDetailPage = ({ item, onBack }) => (
 );
 
 // --- メインコンポーネント ---
-export default function App() {
+export default function Home() {
   const [currentPage, setCurrentPage] = useState('loading');
   const [theme, setTheme] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [keywords, setKeywords] = useState([]);
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [historyItems, setHistoryItems] = useState([]);
-  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
-  const [config, setConfig] = useState({ apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 });
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [config, setConfig] = useState<AppConfig>({ apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 });
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [enableKeywords, setEnableKeywords] = useState(true);
   const [enableSummary, setEnableSummary] = useState(true);
-  const [reminder, setReminder] = useState(null);
-  const chatEndRef = useRef(null);
+  const [reminder, setReminder] = useState<{ theme: string } | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const CONFIG_KEY = 'appConfig';
   const HISTORY_KEY = 'learningHistory';
   const REMINDER_KEY = 'lastSessionForReminder';
 
-  const getHistoryFromKV = async () => {
+  const getHistoryFromKV = async (): Promise<HistoryItem[]> => {
     const storedHistory = localStorage.getItem(HISTORY_KEY);
     return storedHistory ? JSON.parse(storedHistory) : [];
   };
 
-  const saveHistoryToKV = async (newHistoryItem) => {
+  const saveHistoryToKV = async (newHistoryItem: HistoryItem) => {
     const currentHistory = await getHistoryFromKV();
     const updatedHistory = [newHistoryItem, ...currentHistory];
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updatedHistory));
     setHistoryItems(updatedHistory);
   };
 
-  const loadSettingsAndGoToTheme = (loadedConfig) => {
+  const loadSettingsAndGoToTheme = (loadedConfig: AppConfig) => {
     setConfig(loadedConfig);
     setEnableKeywords(loadedConfig.enableKeywords !== false);
     setEnableSummary(loadedConfig.enableSummary !== false);
@@ -282,7 +304,7 @@ export default function App() {
     setCurrentPage('theme');
   };
 
-  const checkForReminder = (currentConfig) => {
+  const checkForReminder = (currentConfig: AppConfig) => {
     if (!currentConfig.enableReminder) return;
     const lastSession = localStorage.getItem(REMINDER_KEY);
     if (lastSession) {
@@ -298,9 +320,10 @@ export default function App() {
 
   useEffect(() => {
     const loadConfig = () => {
-      const savedConfig = localStorage.getItem(CONFIG_KEY);
-      if (savedConfig) {
-        const loadedConfig = { ...config, ...JSON.parse(savedConfig) };
+      const savedConfigJSON = localStorage.getItem(CONFIG_KEY);
+      const defaultConfig = { apiKey: '', localEndpoint: '', pin: '', enableReminder: true, reminderInterval: 1 };
+      if (savedConfigJSON) {
+        const loadedConfig = { ...defaultConfig, ...JSON.parse(savedConfigJSON) };
         if (loadedConfig.pin) {
           setCurrentPage('pinEntry');
         } else {
@@ -317,14 +340,16 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSaveSettings = (newConfig) => {
+  const handleSaveSettings = (newConfig: AppConfig) => {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(newConfig));
     loadSettingsAndGoToTheme(newConfig);
   };
   
-  const handlePinSubmit = (e) => {
+  const handlePinSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const savedConfig = JSON.parse(localStorage.getItem(CONFIG_KEY));
+    const savedConfigJSON = localStorage.getItem(CONFIG_KEY);
+    if (!savedConfigJSON) return;
+    const savedConfig = JSON.parse(savedConfigJSON);
     if (enteredPin === savedConfig.pin) {
       setPinError('');
       loadSettingsAndGoToTheme({ ...config, ...savedConfig });
@@ -334,7 +359,7 @@ export default function App() {
     }
   };
 
-  const handleStartChat = (e) => {
+  const handleStartChat = (e: FormEvent) => {
     e.preventDefault();
     if (theme.trim()) {
       setMessages([{ role: 'assistant', content: `なるほど！「${theme}」について学習したんですね。どんなことでもいいので、私に説明してみてください。` }]);
@@ -346,7 +371,7 @@ export default function App() {
 
   const handleReturnToTheme = async () => {
     if (theme.trim() && messages.length > 1) {
-      const newHistoryItem = { id: `session_${Date.now()}`, theme, date: new Date().toISOString(), keywords, summary };
+      const newHistoryItem: HistoryItem = { id: `session_${Date.now()}`, theme, date: new Date().toISOString(), keywords, summary };
       await saveHistoryToKV(newHistoryItem);
       localStorage.setItem(REMINDER_KEY, JSON.stringify({ theme, date: new Date().toISOString() }));
     }
@@ -354,7 +379,7 @@ export default function App() {
     setCurrentPage('theme');
   };
   
-  const handleReviewReminder = (reminderTheme) => {
+  const handleReviewReminder = (reminderTheme: string) => {
     setTheme(reminderTheme);
     setReminder(null);
     localStorage.removeItem(REMINDER_KEY);
@@ -367,7 +392,7 @@ export default function App() {
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-    const userMessage = { role: 'user', content: inputValue };
+    const userMessage: Message = { role: 'user', content: inputValue };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     if (enableKeywords) { extractKeywords(inputValue); }
@@ -377,24 +402,24 @@ export default function App() {
     try {
       const aiResponse = await callAI('chat', newMessages);
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI応答取得エラー:", error);
       setMessages(prev => [...prev, { role: 'assistant', content: `エラー: ${error.message}` }]);
     } finally { setIsLoading(false); }
   };
 
-  const handleDeleteMessage = (indexToDelete) => {
+  const handleDeleteMessage = (indexToDelete: number) => {
     setMessages(prevMessages => prevMessages.filter((_, index) => index !== indexToDelete && index !== indexToDelete + 1));
   };
 
-  const handleViewHistoryDetail = (item) => {
+  const handleViewHistoryDetail = (item: HistoryItem) => {
     setSelectedHistoryItem(item);
     setCurrentPage('historyDetail');
   };
   
   const systemPromptText = `あなたは、ユーザーの学習をサポートする、フレンドリーで聞き上手なパートナーです。あなたの役割は、専門的な知識で相手を評価したり、間違いを指摘したりすることではありません。相手が自分の言葉で説明を続けられるように、以下のルールに従って応答してください。 # ルール - 相手の説明に対して、まずは「うんうん」「なるほど！」「そうなんですね」といった短い相槌で肯定的に受け止めてください。 - 相手の説明を促すために、「それで、どうなるの？」「もう少し詳しく教えてくれる？」「具体的にはどんな感じ？」「面白いね！他には何かある？」といった、オープンで簡単な質問を投げかけてください。 - 応答は常に短く、1〜2文で簡潔にしてください。 - 決して難しい言葉や専門用語は使わないでください。 - ユーザーが「終わり」や「終了」といった言葉を使ったら、「お疲れ様！よく説明できたね！」といったポジティブな言葉で対話を締めくくってください。`;
 
-  const callAI = async (task, data) => {
+  const callAI = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
     if (config.localEndpoint.trim()) {
       return callLocalLlm(task, data);
     } else if (config.apiKey.trim()) {
@@ -404,7 +429,7 @@ export default function App() {
     }
   };
 
-  const extractKeywords = async (text) => {
+  const extractKeywords = async (text: string) => {
     try {
       const newKeywordsText = await callAI('keywords', text);
       const newKeywords = newKeywordsText.split(',').map(k => k.trim()).filter(Boolean);
@@ -412,7 +437,7 @@ export default function App() {
     } catch (error) { console.error("キーワード抽出エラー:", error); }
   };
 
-  const updateSummary = async (currentMessages) => {
+  const updateSummary = async (currentMessages: Message[]) => {
     setIsSummarizing(true);
     try {
       const newSummary = await callAI('summary', currentMessages);
@@ -421,13 +446,13 @@ export default function App() {
     finally { setIsSummarizing(false); }
   };
 
-  const callLocalLlm = async (task, data) => {
+  const callLocalLlm = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
     const baseUrl = config.localEndpoint.trim().replace(/\/$/, '');
     const fullUrl = `${baseUrl}/v1/chat/completions`;
     let messagesForApi;
-    if (task === 'chat') { messagesForApi = [{ role: 'system', content: systemPromptText }, ...data.map(msg => ({ role: msg.role, content: msg.content }))]; } 
+    if (task === 'chat') { messagesForApi = [{ role: 'system', content: systemPromptText }, ...data.map((msg: Message) => ({ role: msg.role, content: msg.content }))]; } 
     else if (task === 'keywords') { messagesForApi = [{ role: 'system', content: 'You are a keyword extraction expert.' }, { role: 'user', content: `以下のテキストから重要なキーワードを3つ抽出してください。カンマ区切りのリスト形式で、キーワードのみを返してください。 テキスト：${data}` }]; } 
-    else if (task === 'summary') { const conversationText = data.map(msg => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); messagesForApi = [{ role: 'system', content: 'You are a summarization expert.' }, { role: 'user', content: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }]; }
+    else if (task === 'summary') { const conversationText = data.map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); messagesForApi = [{ role: 'system', content: 'You are a summarization expert.' }, { role: 'user', content: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }]; }
     const payload = { model: "local-model", messages: messagesForApi, stream: false };
     const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) { const errorBody = await response.json().catch(() => ({ error: 'サーバーから有効なJSONエラー応答がありません。' })); throw new Error(`ローカルLLMサーバーエラー: ${response.status} ${response.statusText}. ${errorBody.error || ''}`); }
@@ -437,12 +462,12 @@ export default function App() {
     throw new Error("ローカルLLMからのレスポンス形式が不明です。");
   };
 
-  const callGeminiApi = async (task, data) => {
+  const callGeminiApi = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${config.apiKey.trim()}`;
     let contents;
-    if (task === 'chat') { contents = [{ role: 'user', parts: [{ text: systemPromptText }] }, ...data.map(msg => ({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] }))]; } 
+    if (task === 'chat') { contents = [{ role: 'user', parts: [{ text: systemPromptText }] }, ...data.map((msg: Message) => ({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] }))]; } 
     else if (task === 'keywords') { contents = [{ role: 'user', parts: [{ text: `以下のテキストから重要なキーワードを3つ抽出してください。カンマ区切りのリスト形式で、キーワードのみを返してください。 テキスト：${data}` }] }]; } 
-    else if (task === 'summary') { const conversationText = data.map(msg => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); contents = [{ role: 'user', parts: [{ text: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }] }]; }
+    else if (task === 'summary') { const conversationText = data.map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); contents = [{ role: 'user', parts: [{ text: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }] }]; }
     const payload = { contents };
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) { const errorBody = await response.text(); throw new Error(`Gemini APIエラー: ${response.status}. ${errorBody}`); }
