@@ -349,6 +349,8 @@ export default function Home() {
           loadSettingsAndGoToTheme(loadedConfig);
         }
       } else {
+        // First time launch
+        setConfig(defaultConfig);
         setCurrentPage('theme');
       }
     };
