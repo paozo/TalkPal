@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, FC, FormEvent, Dispatch, SetStateAction } from 'react';
+import React, { useState, useRef, useEffect, FC, FormEvent, Dispatch, SetStateAction, useCallback } from 'react';
 
 // --- 型定義 ---
 interface HistoryItem {
@@ -278,8 +278,7 @@ export default function Home() {
   const CONFIG_KEY = 'appConfig';
   const REMINDER_KEY = 'lastSessionForReminder';
 
-  // ★ KV連携用の関数に書き換え
-  const getHistoryFromKV = async (): Promise<HistoryItem[]> => {
+  const getHistoryFromKV = useCallback(async (): Promise<HistoryItem[]> => {
     try {
         const res = await fetch('/api/history');
         if (!res.ok) {
@@ -291,7 +290,7 @@ export default function Home() {
         console.error('Error fetching history:', error);
         return [];
     }
-  };
+  }, []);
 
   const saveHistoryToKV = async (newHistoryItem: HistoryItem) => {
     try {
@@ -305,20 +304,7 @@ export default function Home() {
     }
   };
 
-  const loadSettingsAndGoToTheme = (loadedConfig: AppConfig) => {
-    setConfig(loadedConfig);
-    setEnableKeywords(loadedConfig.enableKeywords !== false);
-    setEnableSummary(loadedConfig.enableSummary !== false);
-    const loadHistory = async () => {
-      const items = await getHistoryFromKV();
-      setHistoryItems(items);
-    };
-    loadHistory();
-    checkForReminder(loadedConfig);
-    setCurrentPage('theme');
-  };
-
-  const checkForReminder = (currentConfig: AppConfig) => {
+  const checkForReminder = useCallback((currentConfig: AppConfig) => {
     if (!currentConfig.enableReminder) return;
     const lastSession = localStorage.getItem(REMINDER_KEY);
     if (lastSession) {
@@ -330,7 +316,20 @@ export default function Home() {
             setReminder({ theme });
         }
     }
-  };
+  }, []);
+
+  const loadSettingsAndGoToTheme = useCallback((loadedConfig: AppConfig) => {
+    setConfig(loadedConfig);
+    setEnableKeywords(loadedConfig.enableKeywords !== false);
+    setEnableSummary(loadedConfig.enableSummary !== false);
+    const loadHistory = async () => {
+      const items = await getHistoryFromKV();
+      setHistoryItems(items);
+    };
+    loadHistory();
+    checkForReminder(loadedConfig);
+    setCurrentPage('theme');
+  }, [checkForReminder, getHistoryFromKV]);
 
   useEffect(() => {
     const loadConfig = () => {
@@ -348,7 +347,7 @@ export default function Home() {
       }
     };
     setTimeout(loadConfig, 10);
-  }, []);
+  }, [loadSettingsAndGoToTheme]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -419,9 +418,10 @@ export default function Home() {
     try {
       const aiResponse = await callAI('chat', newMessages);
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (error: any) {
+    } catch (error) {
       console.error("AI応答取得エラー:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: `エラー: ${error.message}` }]);
+      const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
+      setMessages(prev => [...prev, { role: 'assistant', content: `エラー: ${errorMessage}` }]);
     } finally { setIsLoading(false); }
   };
 
@@ -436,7 +436,7 @@ export default function Home() {
   
   const systemPromptText = `あなたは、ユーザーの学習をサポートする、フレンドリーで聞き上手なパートナーです。あなたの役割は、専門的な知識で相手を評価したり、間違いを指摘したりすることではありません。相手が自分の言葉で説明を続けられるように、以下のルールに従って応答してください。 # ルール - 相手の説明に対して、まずは「うんうん」「なるほど！」「そうなんですね」といった短い相槌で肯定的に受け止めてください。 - 相手の説明を促すために、「それで、どうなるの？」「もう少し詳しく教えてくれる？」「具体的にはどんな感じ？」「面白いね！他には何かある？」といった、オープンで簡単な質問を投げかけてください。 - 応答は常に短く、1〜2文で簡潔にしてください。 - 決して難しい言葉や専門用語は使わないでください。 - ユーザーが「終わり」や「終了」といった言葉を使ったら、「お疲れ様！よく説明できたね！」といったポジティブな言葉で対話を締めくくってください。`;
 
-  const callAI = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
+  const callAI = async (task: 'chat' | 'keywords' | 'summary', data: Message[] | string): Promise<string> => {
     if (config.localEndpoint.trim()) {
       return callLocalLlm(task, data);
     } else if (config.apiKey.trim()) {
@@ -463,13 +463,13 @@ export default function Home() {
     finally { setIsSummarizing(false); }
   };
 
-  const callLocalLlm = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
+  const callLocalLlm = async (task: 'chat' | 'keywords' | 'summary', data: Message[] | string): Promise<string> => {
     const baseUrl = config.localEndpoint.trim().replace(/\/$/, '');
     const fullUrl = `${baseUrl}/v1/chat/completions`;
     let messagesForApi;
-    if (task === 'chat') { messagesForApi = [{ role: 'system', content: systemPromptText }, ...data.map((msg: Message) => ({ role: msg.role, content: msg.content }))]; } 
+    if (task === 'chat') { messagesForApi = [{ role: 'system', content: systemPromptText }, ...(data as Message[]).map((msg: Message) => ({ role: msg.role, content: msg.content }))]; } 
     else if (task === 'keywords') { messagesForApi = [{ role: 'system', content: 'You are a keyword extraction expert.' }, { role: 'user', content: `以下のテキストから重要なキーワードを3つ抽出してください。カンマ区切りのリスト形式で、キーワードのみを返してください。 テキスト：${data}` }]; } 
-    else if (task === 'summary') { const conversationText = data.map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); messagesForApi = [{ role: 'system', content: 'You are a summarization expert.' }, { role: 'user', content: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }]; }
+    else if (task === 'summary') { const conversationText = (data as Message[]).map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); messagesForApi = [{ role: 'system', content: 'You are a summarization expert.' }, { role: 'user', content: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }]; }
     const payload = { model: "local-model", messages: messagesForApi, stream: false };
     const response = await fetch(fullUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) { const errorBody = await response.json().catch(() => ({ error: 'サーバーから有効なJSONエラー応答がありません。' })); throw new Error(`ローカルLLMサーバーエラー: ${response.status} ${response.statusText}. ${errorBody.error || ''}`); }
@@ -479,12 +479,12 @@ export default function Home() {
     throw new Error("ローカルLLMからのレスポンス形式が不明です。");
   };
 
-  const callGeminiApi = async (task: 'chat' | 'keywords' | 'summary', data: any): Promise<string> => {
+  const callGeminiApi = async (task: 'chat' | 'keywords' | 'summary', data: Message[] | string): Promise<string> => {
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${config.apiKey.trim()}`;
     let contents;
-    if (task === 'chat') { contents = [{ role: 'user', parts: [{ text: systemPromptText }] }, ...data.map((msg: Message) => ({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] }))]; } 
+    if (task === 'chat') { contents = [{ role: 'user', parts: [{ text: systemPromptText }] }, ...(data as Message[]).map((msg: Message) => ({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] }))]; } 
     else if (task === 'keywords') { contents = [{ role: 'user', parts: [{ text: `以下のテキストから重要なキーワードを3つ抽出してください。カンマ区切りのリスト形式で、キーワードのみを返してください。 テキスト：${data}` }] }]; } 
-    else if (task === 'summary') { const conversationText = data.map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); contents = [{ role: 'user', parts: [{ text: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }] }]; }
+    else if (task === 'summary') { const conversationText = (data as Message[]).map((msg: Message) => `${msg.role === 'user' ? 'ユーザー' : 'AI'}: ${msg.content}`).join('\n'); contents = [{ role: 'user', parts: [{ text: `以下の会話の要点を、箇条書きで簡潔にまとめてください。\n\n${conversationText}` }] }]; }
     const payload = { contents };
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) { const errorBody = await response.text(); throw new Error(`Gemini APIエラー: ${response.status}. ${errorBody}`); }
@@ -507,7 +507,7 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-gray-900 text-white font-sans flex flex-col h-screen">
+    <div className="bg-gray-900 text-white font-sans flex flex-col h-full">
       {renderPage()}
     </div>
   );
